@@ -34,8 +34,29 @@ static void precomputeMoveData(){
         }
     }
 }
+static bool isColor(int piece, int color){
+    if((piece & color) == 0){
+        return false;
+    }
+    return true;
+}
+static bool isSlidingPiece(int piece){
+    int colorless = piece & 7;
+    if(colorless == Bishop or colorless == Rook or colorless == Queen){
+        return true;
+    }
+    return false;
+}
 
-struct chessMove;
+class chessMove{
+public:
+    int startSquare;
+    int endSquare;
+    chessMove(int start,int end){
+        startSquare = start;
+        endSquare = end;
+    }
+};
 
 class chessPosition {
 public:
@@ -87,14 +108,41 @@ public:
         isInCheck = false;
         //TODO: actually use the FEN here too
     }
+    list<chessMove*> generatePseudolegal(){
+        list<chessMove*> moves;
+        for(int startSquare = 0;startSquare<64;startSquare++){
+            int piece = this->board[startSquare];
+            if(isColor(piece,this->turn)){
+                if(isSlidingPiece(piece)){
+                    generateSlidingMoves(startSquare,piece,moves);
+                }else if((piece & 7) == Knight){
+                    generateKnightMoves(startSquare,moves);
+                }else if((piece & 7) == Pawn){
+                    generatePawnMoves(startSquare,moves);
+                }else{
+                    generateKingMoves(startSquare,moves);
+                }
+            }
+        }
+        return moves;
+    }
+    void generateSlidingMoves(int startSquare, int piece,list<chessMove*> &moves){
+        chessMove* move = new chessMove(startSquare,4);
+        moves.push_back(move);
+        //TODO
+    }
+    void generateKnightMoves(int startSquare,list<chessMove*> &moves){
+        //TODO
+    }
+    void generatePawnMoves(int startSquare,list<chessMove*> &moves){
+        //TODO
+    }
+    void generateKingMoves(int startSquare,list<chessMove*> &moves){
 
+    }
 };
 
-class chessMove{
-public:
-    int startSquare;
-    int endSquare;
-};
+
 
 //TODO: first the board must work, then other things
 
@@ -109,5 +157,10 @@ int main() {
         }
         cout<<endl;
     }
+
+
+    cout<<(8 & 14)<<endl;
+    cout<<(8 & 22)<<endl;
+
     return 0;
 }
