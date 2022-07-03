@@ -18,6 +18,7 @@ static const int Black = 16;
 static const string startingFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
 
 static const vector<int> dirOffsets = {8,-8,-1,1,7,-7,9,-9};
+static const vector<int> knightOffsets = {6,-10,15,-17,17,-15,10,-6};
 static vector<vector<int>> numSquaresToEdge(64,vector<int>(8));
 
 static void precomputeMoveData(){
@@ -47,6 +48,13 @@ static bool isSlidingPiece(int piece){
     }
     return false;
 }
+static int oppositeColor(int color){
+    if(color == White){
+        return Black;
+    }else{
+        return White;
+    }
+}
 
 class chessMove{
 public:
@@ -63,16 +71,18 @@ public:
     vector<int> board;
     char turn;
     vector<bool> castlingRights;
+    int enPassantTarget;
     int halfmoves;
     int fullmoves;
     bool isInCheck;
-    list<chessMove> pseudoLegalMoves;
-    list<chessMove> legalMoves;
+    list<chessMove*> pseudoLegalMoves;
+    list<chessMove*> legalMoves;
 
     chessPosition(){
         for(int i = 0; i<64;i++){
             board.push_back(0);
         }
+        enPassantTarget = -1;
         turn = 8;
         halfmoves = 0;
         fullmoves = 1;
@@ -102,6 +112,7 @@ public:
                 }
             }
         }
+        enPassantTarget = -1;
         turn = 8;
         halfmoves = 0;
         fullmoves = 1;
@@ -127,18 +138,100 @@ public:
         return moves;
     }
     void generateSlidingMoves(int startSquare, int piece,list<chessMove*> &moves){
-        chessMove* move = new chessMove(startSquare,4);
-        moves.push_back(move);
-        //TODO
+        int startDirIndex = ((piece & 7) == Bishop) ? 4 : 0;
+        int endDirIndex = ((piece & 7) == Rook) ? 4 : 8;
+
+        for (int dirIndex = startDirIndex; dirIndex<endDirIndex;dirIndex++){
+            for (int n = 0; n < numSquaresToEdge[startSquare][dirIndex];n++){
+                int targetSquare = startSquare + dirOffsets[dirIndex] * (n+1);
+                int pieceOnTargetSquare = this->board[targetSquare];
+                if(isColor(pieceOnTargetSquare,this->turn)){
+                    break;
+                }
+                moves.push_back(new chessMove(startSquare,targetSquare));
+                if(isColor(pieceOnTargetSquare, oppositeColor(this->turn))){
+                    break;
+                }
+            }
+        }
+
     }
     void generateKnightMoves(int startSquare,list<chessMove*> &moves){
-        //TODO
+        int file = startSquare % 8;
+        int startDirIndex;
+        int endDirIndex;
+        switch (file) {
+            case 0:
+                startDirIndex = 4;
+                endDirIndex = 8;
+                break;
+            case 1:
+                startDirIndex = 2;
+                endDirIndex = 8;
+                break;
+            case 6:
+                startDirIndex = 0;
+                endDirIndex = 6;
+                break;
+            case 7:
+                startDirIndex = 0;
+                endDirIndex = 4;
+                break;
+            default:
+                startDirIndex = 0;
+                endDirIndex = 8;
+                break;
+        }
+        for(int dirIndex = startDirIndex;dirIndex<endDirIndex;dirIndex++){
+            int targetSquare = startSquare+knightOffsets[dirIndex];
+            if(0<=targetSquare and targetSquare<64){
+                if(!isColor(this->board[targetSquare],this->turn)){
+                    moves.push_back(new chessMove(startSquare,targetSquare));
+                }
+
+            }
+        }
+
+
     }
     void generatePawnMoves(int startSquare,list<chessMove*> &moves){
-        //TODO
+        int file = startSquare % 8;
+        int rank = (startSquare - file)/8;
+        if(this->turn==White){
+            if(this->board[startSquare+8] == None){
+                moves.push_back(new chessMove(startSquare,startSquare+8));
+                if(rank ==1){
+                    if(this->board[startSquare+16] == None){
+                        moves.push_back(new chessMove(startSquare,startSquare+16));
+                    }
+                }
+            }
+            if(file != 0 and (isColor(this->board[startSquare+7], Black) or this->board[startSquare+7]==this->enPassantTarget)){
+                moves.push_back(new chessMove(startSquare,startSquare+7));
+            }
+            if(file != 7 and (isColor(this->board[startSquare+9], Black) or this->board[startSquare+9]==this->enPassantTarget)){
+                moves.push_back(new chessMove(startSquare,startSquare+9));
+            }
+        }else{
+            if(this->board[startSquare-8] == None){
+                moves.push_back(new chessMove(startSquare,startSquare-8));
+                if(rank == 6){
+                    if(this->board[startSquare-16] == None){
+                        moves.push_back(new chessMove(startSquare,startSquare-16));
+                    }
+                }
+            }
+            if(file != 0 and (isColor(this->board[startSquare-9], White) or this->board[startSquare-9]==this->enPassantTarget)){
+                moves.push_back(new chessMove(startSquare,startSquare-9));
+            }
+            if(file != 7 and (isColor(this->board[startSquare-7], White) or this->board[startSquare-7]==this->enPassantTarget)){
+                moves.push_back(new chessMove(startSquare,startSquare-7));
+            }
+        }
+        //TODO En passant target saving, maybe?, Promotion
     }
     void generateKingMoves(int startSquare,list<chessMove*> &moves){
-
+        //TODO
     }
 };
 
@@ -150,17 +243,22 @@ public:
 
 int main() {
     precomputeMoveData();
-    auto testpos = new chessPosition("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+    string diffcultTestPosFEN = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
+    auto testpos = new chessPosition("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR");
+    auto diffTestPos = new chessPosition(diffcultTestPosFEN);
     for(int rank = 7;rank>=0;rank--){
         for(int file = 0;file<8;file++){
-            cout<<testpos->board[rank*8+file]<<" ";
+            cout<<diffTestPos->board[rank*8+file]<<" ";
         }
         cout<<endl;
     }
+    diffTestPos->pseudoLegalMoves = diffTestPos->generatePseudolegal();
+    for(auto k: diffTestPos->pseudoLegalMoves){
+        cout<<k->startSquare<<" "<<k->endSquare<<endl;
+    }
 
 
-    cout<<(8 & 14)<<endl;
-    cout<<(8 & 22)<<endl;
+
 
     return 0;
 }
