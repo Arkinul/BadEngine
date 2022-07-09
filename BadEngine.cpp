@@ -15,7 +15,7 @@ static const int Queen = 6;
 static const int White = 8;
 static const int Black = 16;
 
-static const string startingFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
+static const string startingFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 static const vector<int> dirOffsets = {8,-8,-1,1,7,-7,9,-9};
 static const vector<int> knightOffsets = {6,-10,15,-17,17,-15,10,-6};
@@ -27,6 +27,9 @@ static const int BishopProm = 4;
 static const int RookProm = 5;
 static const int QueenProm = 6;
 static const int doublePawnPush = 7;
+static const int enPassant = 8;
+static random_device randDev;
+
 
 static void precomputeMoveData(){
     for (int file = 0;file<8;file++){
@@ -63,6 +66,7 @@ static int oppositeColor(int color){
     }
 }
 
+
 class chessMove{
 public:
     int startSquare;
@@ -91,8 +95,8 @@ public:
     bool isInCheck;
     int whiteKingSquare;
     int blackKingSquare;
-    list<chessMove*> pseudoLegalMoves;
-    list<chessMove*> legalMoves;
+    vector<chessMove*> pseudoLegalMoves;
+    vector<chessMove*> legalMoves;
 
     chessPosition(){
         for(int i = 0; i<64;i++){
@@ -111,12 +115,13 @@ public:
         auto pieceFromSymbol = new map<char, char>  {
                 {'k',King}, {'p', Pawn}, {'n',Knight}, {'b',Bishop},{'r',Rook},{'q',Queen}
         };
-        string fenboard = fen.substr(0,fen.find_first_of(' '));
+        string fenBoard = fen.substr(0,fen.find_first_of(' '));
+        string fenRemainder = fen.substr(fen.find_first_of(' ')+1,fen.size()-fen.find_first_of(' ')-1);
         int file = 0,rank = 7;
         for(int i = 0; i<64;i++){
             board.push_back(None);
         }
-        for(auto symbol: fenboard){
+        for(auto symbol: fenBoard){
             if(symbol == '/'){
                 file = 0;
                 rank--;
@@ -131,12 +136,44 @@ public:
                 }
             }
         }
-        castlingRights= {true,true,true,true};
+        string fenTurn = fenRemainder.substr(0,fenRemainder.find_first_of(' '));
+        fenRemainder =  fenRemainder.substr(fenRemainder.find_first_of(' ')+1,fenRemainder.size()-fenRemainder.find_first_of(' ')-1);
+        if(fenTurn == "w"){
+            turn = 8;
+        }else if(fenTurn == "b"){
+            turn = 16;
+        }else{
+            cout<<"invalid FEN"<<endl;
+        }
+        string fenRights = fenRemainder.substr(0,fenRemainder.find_first_of(' '));
+        fenRemainder =  fenRemainder.substr(fenRemainder.find_first_of(' ')+1,fenRemainder.size()-fenRemainder.find_first_of(' ')-1);
+        castlingRights= {false,false,false,false};
+        for(auto symbol : fenRights){
+            if(symbol == '-'){
+                break;
+            }else if(symbol == 'K'){
+                castlingRights[0] = true;
+            }else if(symbol == 'Q'){
+                castlingRights[1] = true;
+            }else if(symbol == 'k'){
+                castlingRights[2] = true;
+            }else if(symbol == 'q'){
+                castlingRights[3] = true;
+            }else{
+                cout<<"invalid FEN"<<endl;
+            }
+        }
+        string fenEnPassant = fenRemainder.substr(0,fenRemainder.find_first_of(' '));
+        fenRemainder =  fenRemainder.substr(fenRemainder.find_first_of(' ')+1,fenRemainder.size()-fenRemainder.find_first_of(' ')-1);
         enPassantTarget = -1;
-        turn = 8;
-        halfmoves = 0;
-        fullmoves = 1;
-        //TODO: actually use the FEN here too
+        //TODO: actually use the FEN here too, stringtoSquare
+        string fenHalfMoves = fenRemainder.substr(0,fenRemainder.find_first_of(' '));
+        fenRemainder =  fenRemainder.substr(fenRemainder.find_first_of(' ')+1,fenRemainder.size()-fenRemainder.find_first_of(' ')-1);
+
+        halfmoves = stoi(fenHalfMoves);
+
+        fullmoves = stoi(fenRemainder);
+
         isInCheck = false;
         for(int i = 0;i<63;i++){
             if(board[i]==(White|King)){
@@ -147,8 +184,8 @@ public:
         }
 
     }
-    list<chessMove*> generatePseudolegal(){
-        list<chessMove*> moves;
+    vector<chessMove*> generatePseudolegal(){
+        vector<chessMove*> moves;
         for(int startSquare = 0;startSquare<64;startSquare++){
             int piece = this->board[startSquare];
             if(isColor(piece,this->turn)){
@@ -165,7 +202,7 @@ public:
         }
         return moves;
     }
-    void generateSlidingMoves(int startSquare, int piece,list<chessMove*> &moves){
+    void generateSlidingMoves(int startSquare, int piece,vector<chessMove*> &moves){
         int startDirIndex = ((piece & 7) == Bishop) ? 4 : 0;
         int endDirIndex = ((piece & 7) == Rook) ? 4 : 8;
 
@@ -184,7 +221,7 @@ public:
         }
 
     }
-    void generateKnightMoves(int startSquare,list<chessMove*> &moves){
+    void generateKnightMoves(int startSquare,vector<chessMove*> &moves){
         int file = startSquare % 8;
         int startDirIndex;
         int endDirIndex;
@@ -222,7 +259,7 @@ public:
 
 
     }
-    void generatePawnMoves(int startSquare,list<chessMove*> &moves){
+    void generatePawnMoves(int startSquare,vector<chessMove*> &moves){
         int file = startSquare % 8;
         int rank = (startSquare - file)/8;
         if(this->turn==White){
@@ -241,26 +278,37 @@ public:
                     }
                 }
             }
-            if(file != 0 and (isColor(this->board[startSquare+7], Black) or this->board[startSquare+7]==this->enPassantTarget)){
-                if(rank == 6){
-                    moves.push_back(new chessMove(startSquare,startSquare+7,KnightProm));
-                    moves.push_back(new chessMove(startSquare,startSquare+7,BishopProm));
-                    moves.push_back(new chessMove(startSquare,startSquare+7,RookProm));
-                    moves.push_back(new chessMove(startSquare,startSquare+7,QueenProm));
-                }else{
-                    moves.push_back(new chessMove(startSquare,startSquare+7));
+            if(file != 0){
+                if(isColor(this->board[startSquare+7], Black)){
+                    if(rank == 6){
+                        moves.push_back(new chessMove(startSquare,startSquare+7,KnightProm));
+                        moves.push_back(new chessMove(startSquare,startSquare+7,BishopProm));
+                        moves.push_back(new chessMove(startSquare,startSquare+7,RookProm));
+                        moves.push_back(new chessMove(startSquare,startSquare+7,QueenProm));
+                    }else{
+                        moves.push_back(new chessMove(startSquare,startSquare+7));
+                    }
+                }else if(startSquare+7==this->enPassantTarget){
+                    moves.push_back(new chessMove(startSquare,startSquare+7,enPassant));
                 }
+
             }
-            if(file != 7 and (isColor(this->board[startSquare+9], Black) or this->board[startSquare+9]==this->enPassantTarget)){
-                if(rank == 6){
-                    moves.push_back(new chessMove(startSquare,startSquare+9,KnightProm));
-                    moves.push_back(new chessMove(startSquare,startSquare+9,BishopProm));
-                    moves.push_back(new chessMove(startSquare,startSquare+9,RookProm));
-                    moves.push_back(new chessMove(startSquare,startSquare+9,QueenProm));
-                }else{
-                    moves.push_back(new chessMove(startSquare,startSquare+9));
+            if(file != 7){
+                if(isColor(this->board[startSquare+9], Black)){
+                    if(rank == 6){
+                        moves.push_back(new chessMove(startSquare,startSquare+9,KnightProm));
+                        moves.push_back(new chessMove(startSquare,startSquare+9,BishopProm));
+                        moves.push_back(new chessMove(startSquare,startSquare+9,RookProm));
+                        moves.push_back(new chessMove(startSquare,startSquare+9,QueenProm));
+                    }else{
+                        moves.push_back(new chessMove(startSquare,startSquare+9));
+                    }
+                }else if(startSquare+9==this->enPassantTarget){
+                    moves.push_back(new chessMove(startSquare,startSquare+9,enPassant));
                 }
+
             }
+
         }else{
             if(this->board[startSquare-8] == None){
                 if(rank == 1){
@@ -277,30 +325,40 @@ public:
                     }
                 }
             }
-            if(file != 0 and (isColor(this->board[startSquare-9], White) or this->board[startSquare-9]==this->enPassantTarget)){
-                if(rank == 1){
-                    moves.push_back(new chessMove(startSquare,startSquare-9,KnightProm));
-                    moves.push_back(new chessMove(startSquare,startSquare-9,BishopProm));
-                    moves.push_back(new chessMove(startSquare,startSquare-9,RookProm));
-                    moves.push_back(new chessMove(startSquare,startSquare-9,QueenProm));
-                }else{
-                    moves.push_back(new chessMove(startSquare,startSquare-9));
+            if(file != 0){
+                if(isColor(this->board[startSquare-9], White)){
+                    if(rank == 1){
+                        moves.push_back(new chessMove(startSquare,startSquare-9,KnightProm));
+                        moves.push_back(new chessMove(startSquare,startSquare-9,BishopProm));
+                        moves.push_back(new chessMove(startSquare,startSquare-9,RookProm));
+                        moves.push_back(new chessMove(startSquare,startSquare-9,QueenProm));
+                    }else{
+                        moves.push_back(new chessMove(startSquare,startSquare-9));
+                    }
+                }else if(startSquare-9==this->enPassantTarget){
+                    moves.push_back(new chessMove(startSquare,startSquare-9,enPassant));
                 }
+
             }
-            if(file != 7 and (isColor(this->board[startSquare-7], White) or this->board[startSquare-7]==this->enPassantTarget)){
-                if(rank == 1){
-                    moves.push_back(new chessMove(startSquare,startSquare-7,KnightProm));
-                    moves.push_back(new chessMove(startSquare,startSquare-7,BishopProm));
-                    moves.push_back(new chessMove(startSquare,startSquare-7,RookProm));
-                    moves.push_back(new chessMove(startSquare,startSquare-7,QueenProm));
-                }else{
-                    moves.push_back(new chessMove(startSquare,startSquare-7));
+            if(file != 7){
+                if(isColor(this->board[startSquare-7], White)){
+                    if(rank == 1){
+                        moves.push_back(new chessMove(startSquare,startSquare-7,KnightProm));
+                        moves.push_back(new chessMove(startSquare,startSquare-7,BishopProm));
+                        moves.push_back(new chessMove(startSquare,startSquare-7,RookProm));
+                        moves.push_back(new chessMove(startSquare,startSquare-7,QueenProm));
+                    }else{
+                        moves.push_back(new chessMove(startSquare,startSquare-7));
+                    }
+                }else if(startSquare-7==this->enPassantTarget){
+                    moves.push_back(new chessMove(startSquare,startSquare-7,enPassant));
                 }
+
             }
         }
 
     }
-    void generateKingMoves(int startSquare,list<chessMove*> &moves){
+    void generateKingMoves(int startSquare,vector<chessMove*> &moves){
         for(int dirIndex = 0;dirIndex<8;dirIndex++){
             if (numSquaresToEdge[startSquare][dirIndex] !=0){
                 int targetSquare = startSquare + dirOffsets[dirIndex];
@@ -355,7 +413,7 @@ public:
         blackKingSquare = oldPos.blackKingSquare;
 
     }
-    chessPosition makeMove(chessMove move){
+    chessPosition makeMove(chessMove* move){
         chessPosition newPos = *this;
         if(newPos.turn == White){
             newPos.turn = Black;
@@ -363,73 +421,73 @@ public:
             newPos.fullmoves++;
             newPos.turn = White;
         }
-        int piece = newPos.board[move.startSquare];
-        newPos.board[move.startSquare] = None;
+        int piece = newPos.board[move->startSquare];
+        newPos.board[move->startSquare] = None;
 
-        newPos.board[move.endSquare] = piece;
+        newPos.board[move->endSquare] = piece;
         newPos.enPassantTarget = -1;
         if(piece == (White | King)){
-            newPos.whiteKingSquare = move.endSquare;
+            newPos.whiteKingSquare = move->endSquare;
             newPos.castlingRights[0] = false;
             newPos.castlingRights[1] = false;
         }else if(piece == (Black | King)){
-            newPos.blackKingSquare = move.endSquare;
+            newPos.blackKingSquare = move->endSquare;
             newPos.castlingRights[2] = false;
             newPos.castlingRights[3] = false;
         }else if(piece == (White | Rook)){
-            if(move.startSquare == 7){
+            if(move->startSquare == 7){
                 newPos.castlingRights[0] = false;
-            }else if(move.startSquare == 0){
+            }else if(move->startSquare == 0){
                 newPos.castlingRights[1] = false;
             }
         }else if(piece == (Black | Rook)){
-            if(move.startSquare == 63){
+            if(move->startSquare == 63){
                 newPos.castlingRights[2] = false;
-            }else if(move.startSquare == 56){
+            }else if(move->startSquare == 56){
                 newPos.castlingRights[3] = false;
             }
         }
-        if(move.endSquare == 7){
+        if(move->endSquare == 7){
             newPos.castlingRights[0] = false;
-        }else if(move.endSquare == 0){
+        }else if(move->endSquare == 0){
             newPos.castlingRights[1] = false;
-        }else if(move.endSquare == 63){
+        }else if(move->endSquare == 63){
             newPos.castlingRights[2] = false;
-        }else if(move.endSquare == 56){
+        }else if(move->endSquare == 56){
             newPos.castlingRights[3] = false;
         }
-        if(move.specialty == None){
+        if(move->specialty == None){
 
-        }else if(move.specialty == doublePawnPush){
+        }else if(move->specialty == doublePawnPush){
             if(newPos.turn == White){
-                newPos.enPassantTarget = move.startSquare+8;
+                newPos.enPassantTarget = move->startSquare-8;
             }else if(newPos.turn == Black){
-                newPos.enPassantTarget = move.startSquare-8;
+                newPos.enPassantTarget = move->startSquare+8;
             }
-        }else if(move.specialty == KCastle){
-            if(newPos.turn == White){
+        }else if(move->specialty == KCastle){
+            if(this->turn == White){
                 newPos.board[7] = None;
                 newPos.board[5] = (White | Rook);
-            }else if(newPos.turn == Black){
+            }else if(this->turn == Black){
                 newPos.board[63] = None;
                 newPos.board[61] = (Black | Rook);
             }
-        }else if(move.specialty == QCastle){
-            if(newPos.turn == White){
+        }else if(move->specialty == QCastle){
+            if(this->turn == White){
                 newPos.board[0] = None;
                 newPos.board[3] = (White | Rook);
-            }else if(newPos.turn == Black){
+            }else if(this->turn == Black){
                 newPos.board[56] = None;
                 newPos.board[59] = (Black | Rook);
             }
-        }else if(move.specialty == KnightProm){
-            newPos.board[move.endSquare] = (newPos.turn | Knight);
-        }else if(move.specialty == BishopProm){
-            newPos.board[move.endSquare] = (newPos.turn | Bishop);
-        }else if(move.specialty == RookProm){
-            newPos.board[move.endSquare] = (newPos.turn | Rook);
-        }else if(move.specialty == QueenProm){
-            newPos.board[move.endSquare] = (newPos.turn | Queen);
+        }else if(move->specialty == KnightProm){
+            newPos.board[move->endSquare] = (this->turn | Knight);
+        }else if(move->specialty == BishopProm){
+            newPos.board[move->endSquare] = (this->turn | Bishop);
+        }else if(move->specialty == RookProm){
+            newPos.board[move->endSquare] = (this->turn | Rook);
+        }else if(move->specialty == QueenProm){
+            newPos.board[move->endSquare] = (this->turn | Queen);
         }
         //TODO: update material
         return newPos;
@@ -439,11 +497,12 @@ public:
             for(int n=0;n<numSquaresToEdge[Square][dirIndex];n++){
                 int targetSquare = Square + dirOffsets[dirIndex] * (n+1);
                 int pieceOnTargetSquare = this->board[targetSquare];
-                if(isColor(pieceOnTargetSquare,this->turn)){
-                    break;
-                }
-                if(pieceOnTargetSquare == (Bishop | oppositeColor(this->turn)) or pieceOnTargetSquare == (Queen | oppositeColor(this->turn))){
+                if(pieceOnTargetSquare == (Rook | oppositeColor(this->turn)) or pieceOnTargetSquare == (Queen | oppositeColor(this->turn))){
                     return true;
+                }else if(pieceOnTargetSquare == None){
+                    continue;
+                }else{
+                    break;
                 }
             }
         }
@@ -451,11 +510,12 @@ public:
             for(int n=0;n<numSquaresToEdge[Square][dirIndex];n++){
                 int targetSquare = Square + dirOffsets[dirIndex] * (n+1);
                 int pieceOnTargetSquare = this->board[targetSquare];
-                if(isColor(pieceOnTargetSquare,this->turn)){
-                    break;
-                }
-                if(pieceOnTargetSquare == (Rook | oppositeColor(this->turn)) or pieceOnTargetSquare == (Queen | oppositeColor(this->turn))){
+                if(pieceOnTargetSquare == (Bishop | oppositeColor(this->turn)) or pieceOnTargetSquare == (Queen | oppositeColor(this->turn))){
                     return true;
+                }else if(pieceOnTargetSquare == None){
+                    continue;
+                }else{
+                    break;
                 }
             }
         }
@@ -510,36 +570,196 @@ public:
 
         return false;
     }
+    chessMove* randomMove(){
+
+        int x = randDev() % (this->legalMoves.size());
+        return this->legalMoves[x];
+    }
+    vector<chessMove*> generateLegalMoves(){
+        vector<chessMove*> moves;
+        chessPosition resultPos;
+        for(auto move: pseudoLegalMoves){
+            resultPos = this->makeMove(move);
+            if(resultPos.turn==White){
+                resultPos.turn = Black;
+                if(!resultPos.isAttacked(resultPos.blackKingSquare)){
+                    moves.push_back(move);
+                }else{
+                    //cout<<"removed "<<moveToPrintMove(move)<<endl;
+                }
+            }else if(resultPos.turn == Black){
+                resultPos.turn = White;
+                if(!resultPos.isAttacked(resultPos.whiteKingSquare)){
+                    moves.push_back(move);
+                }else{
+                    //cout<<"removed "<<moveToPrintMove(move)<<endl;
+                }
+            }
+
+        }
+        return moves;
+    }
+    static string squareToString(int square){
+        int file = square % 8;
+        int rank = (square-file) / 8;
+
+        string result;
+        file = file+char(97);
+        rank = rank+49;
+        char filechar = char(file);
+        char rankchar = char(rank);
+
+        result = result + filechar;
+
+        result = result + rankchar;
+
+        return result;
+    }
+    string moveToPrintMove(chessMove* move){
+        char piece;
+        switch(this->board[move->startSquare] & 7){
+            case King:
+                piece = 'K';
+                break;
+            case Pawn:
+                piece = 'P';
+                break;
+            case Knight:
+                piece = 'N';
+                break;
+            case Bishop:
+                piece = 'B';
+                break;
+            case Rook:
+                piece = 'R';
+                break;
+            case Queen:
+                piece = 'Q';
+                break;
+        }
+        string result;
+        if(this->turn == White){
+            result = result + to_string(this->fullmoves)+ ". ";
+        }
+        if(move->specialty == KCastle){
+            result = result + "0-0";
+            return result;
+        }else if(move->specialty == QCastle){
+            result = result + "0-0-0";
+            return result;
+        }
+        result = result + piece + squareToString(move->startSquare);
+        if(this->board[move->endSquare] != None or move->specialty == enPassant){
+            result = result + "x";
+        }
+        result = result + squareToString(move->endSquare);
+        if(move->specialty == KnightProm){
+            result = result + "=N";
+        }else if(move->specialty == BishopProm){
+            result = result + "=B";
+        }else if(move->specialty == RookProm){
+            result = result + "=R";
+        }else if(move->specialty == QueenProm){
+            result = result + "=Q";
+        }
+        auto resultPos = this->makeMove(move);
+        if(resultPos.turn==White){
+            if(resultPos.isAttacked(resultPos.whiteKingSquare)){
+                result = result + "+";
+            }
+        }else if(resultPos.turn == Black){
+            if(resultPos.isAttacked(resultPos.blackKingSquare)){
+                result = result + "+";
+            }
+        }
+        return result;
+        //TODO:better with checkmate
+    }
 };
 
 
 
 //TODO: first the board must work, then other things
 
+static int moveGenTest(chessPosition pos, int depth){
+    if (depth == 0){
+        return 1;
+    }
+    pos.pseudoLegalMoves=pos.generatePseudolegal();
+    pos.legalMoves=pos.generateLegalMoves();
+    int numberOfPositions= 0;
+    for(auto move:pos.legalMoves){
+        chessPosition newPos = pos.makeMove(move);
+//        int test = moveGenTest(newPos,depth-1);
+//        if(depth>0){
+//            cout<<pos.moveToPrintMove(move)<<" "<<test<<endl;
+//        }
 
+
+        numberOfPositions += moveGenTest(newPos,depth-1);
+    }
+    //cout<<numberOfPositions<<endl;
+    return numberOfPositions;
+}
 
 int main() {
     precomputeMoveData();
     string diffcultTestPosFEN = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
-    auto testpos = new chessPosition("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR");
-    auto diffTestPos = new chessPosition(diffcultTestPosFEN);
+    auto testpos = *new chessPosition("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2");
+    auto diffTestPos = *new chessPosition(diffcultTestPosFEN);
     for(int rank = 7;rank>=0;rank--){
         for(int file = 0;file<8;file++){
-            cout<<diffTestPos->board[rank*8+file]<<" ";
+            cout<<diffTestPos.board[rank*8+file]<<" ";
         }
         cout<<endl;
     }
-    diffTestPos->pseudoLegalMoves = diffTestPos->generatePseudolegal();
-    cout<<diffTestPos->pseudoLegalMoves.size()<<endl;
-    for(auto k: diffTestPos->pseudoLegalMoves){
-        cout<<k->startSquare<<" "<<k->endSquare<<endl;
+    cout<<diffTestPos.turn<<endl;
+    for(int i = 0;i<4;i++){
+        if(diffTestPos.castlingRights[i]){
+            cout<<"True"<<endl;
+        }else{
+            cout<<"False"<<endl;
+        }
+    }
+    cout<<diffTestPos.enPassantTarget<<endl;
+    cout<<diffTestPos.halfmoves<<endl;
+    cout<<diffTestPos.fullmoves<<endl;
+
+
+    cout<<"Testing pseudolegal moves"<<endl;
+
+    diffTestPos.pseudoLegalMoves = diffTestPos.generatePseudolegal();
+    cout<<diffTestPos.pseudoLegalMoves.size()<<endl;
+    for(auto move: diffTestPos.pseudoLegalMoves){
+        cout<<diffTestPos.moveToPrintMove(move)<<endl;
 
     }
-    chessPosition afterMove = testpos->makeMove(*new chessMove(6,21));
-    cout<<afterMove.board[6]<<endl;
-    cout<<afterMove.board[21]<<endl;
-    cout<<testpos->board[6]<<endl;
-    cout<<testpos->board[21]<<endl;
+    cout<<"Testing legal moves"<<endl;
+    diffTestPos.legalMoves = diffTestPos.generateLegalMoves();
+    cout<<diffTestPos.legalMoves.size()<<endl;
+    chessPosition afterMove = testpos.makeMove(new chessMove(6,21));
+
+    auto thirdPos= *new chessPosition(startingFEN);
+
+    //thirdPos = thirdPos.makeMove(new chessMove(8,24,doublePawnPush));
+    cout<<thirdPos.enPassantTarget<<endl;
+//    for(int i = 0; i<30;i++){
+//        thirdPos.pseudoLegalMoves = thirdPos.generatePseudolegal();
+//        thirdPos.legalMoves = thirdPos.generateLegalMoves();
+//
+//        chessMove* move = thirdPos.randomMove();
+//        cout<<thirdPos.moveToPrintMove(move)<<endl;
+//        thirdPos = (thirdPos.makeMove(move));
+//    }
+    for(int rank = 7;rank>=0;rank--){
+        for(int file = 0;file<8;file++){
+            cout<<thirdPos.board[rank*8+file]<<" ";
+        }
+        cout<<endl;
+    }
+    //cout<<moveGenTest(thirdPos,3)<<endl;
+    //diffTestPos = diffTestPos.makeMove(new chessMove(4,6,KCastle));
+    cout<<moveGenTest(diffTestPos,5)<<endl;
 
 
 
