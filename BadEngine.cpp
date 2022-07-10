@@ -30,6 +30,12 @@ static const int doublePawnPush = 7;
 static const int enPassant = 8;
 static random_device randDev;
 
+static const int pawnValue = 200;
+static const int knightValue = 600;
+static const int bishopValue = 600;
+static const int rookValue = 1000;
+static const int queenValue = 1800;
+
 
 static void precomputeMoveData(){
     for (int file = 0;file<8;file++){
@@ -488,6 +494,12 @@ public:
             newPos.board[move->endSquare] = (this->turn | Rook);
         }else if(move->specialty == QueenProm){
             newPos.board[move->endSquare] = (this->turn | Queen);
+        }else if(move->specialty == enPassant){
+            if(this->turn == White){
+                newPos.board[move->endSquare-8] = None;
+            }else if(this->turn == Black){
+                newPos.board[move->endSquare+8] = None;
+            }
         }
         //TODO: update material
         return newPos;
@@ -599,6 +611,10 @@ public:
         }
         return moves;
     }
+    void generateMoves(){
+        this->pseudoLegalMoves = this->generatePseudolegal();
+        this->legalMoves = this->generateLegalMoves();
+    }
     static string squareToString(int square){
         int file = square % 8;
         int rank = (square-file) / 8;
@@ -675,18 +691,16 @@ public:
         return result;
         //TODO:better with checkmate
     }
+
 };
 
 
-
-//TODO: first the board must work, then other things
 
 static int moveGenTest(chessPosition pos, int depth){
     if (depth == 0){
         return 1;
     }
-    pos.pseudoLegalMoves=pos.generatePseudolegal();
-    pos.legalMoves=pos.generateLegalMoves();
+    pos.generateMoves();
     int numberOfPositions= 0;
     for(auto move:pos.legalMoves){
         chessPosition newPos = pos.makeMove(move);
@@ -701,6 +715,119 @@ static int moveGenTest(chessPosition pos, int depth){
     //cout<<numberOfPositions<<endl;
     return numberOfPositions;
 }
+
+static chessMove* stringToMove(string movestring){
+    char file = movestring[0];
+    char rank = movestring[1];
+    int fileint = file - 97;
+    int rankint = rank - 49;
+    int startsquare = rankint * 8 + fileint;
+    file = movestring[2];
+    rank = movestring[3];
+    fileint = file -97;
+    rankint = rank - 49;
+    int endsquare = rankint * 8 + fileint;
+    if(movestring.size()>4){
+        int spec = 0;
+        if(movestring.size() == 5){
+            if(movestring[4] == 'D'){
+                spec = doublePawnPush;
+            }else if(movestring[4] == 'P'){
+                spec = enPassant;
+            }else if(movestring[4] == 'N'){
+                spec = KnightProm;
+            }else if(movestring[4] == 'B'){
+                spec = BishopProm;
+            }else if(movestring[4] == 'R'){
+                spec = RookProm;
+            }else if(movestring[4] == 'Q'){
+                spec = QueenProm;
+            }
+        }else if(movestring.size() == 6){
+            if(movestring[5] == 'K'){
+                spec = KCastle;
+            }else if(movestring[5] == 'Q'){
+                spec = QCastle;
+            }
+        }
+        return new chessMove(startsquare,endsquare,spec);
+    }
+    return new chessMove(startsquare, endsquare);
+}
+static void gameAgainstHuman(){
+    cout<<"New Game against Human"<<endl;
+    chessPosition livePos = *new chessPosition(startingFEN);
+    cout<<"choose Color:"<<endl;
+    string color;
+    cin>>color;
+    bool ongoing = true;
+    chessMove* move;
+    if(color == "w"){
+        while(ongoing){
+            string input;
+            cin>>input;
+            if(input == "stop"){
+                ongoing = false;
+                break;
+            }else{
+                move = stringToMove(input);
+                livePos = livePos.makeMove(move);
+            }
+            livePos.generateMoves();
+            if(livePos.legalMoves.empty()){
+                if(livePos.isAttacked(livePos.blackKingSquare)){
+                    cout<<"Checkmate, you win!"<<endl;
+                    ongoing = false;
+                    break;
+                }else{
+                    cout<<"Stalemate!"<<endl;
+                    ongoing = false;
+                    break;
+                }
+            }else{
+                move = livePos.randomMove();
+                cout<<livePos.moveToPrintMove(move)<<endl;
+                livePos = livePos.makeMove(move);
+            }
+        }
+    }else if(color == "b"){
+        while(ongoing){
+
+            livePos.generateMoves();
+            if(livePos.legalMoves.empty()){
+                if(livePos.isAttacked(livePos.whiteKingSquare)){
+                    cout<<"Checkmate, you win!"<<endl;
+                    ongoing = false;
+                    break;
+                }else{
+                    cout<<"Stalemate!"<<endl;
+                    ongoing = false;
+                    break;
+                }
+            }else{
+                move = livePos.randomMove();
+                cout<<livePos.moveToPrintMove(move)<<endl;
+                livePos = livePos.makeMove(move);
+            }
+            string input;
+            cin>>input;
+            if(input == "stop"){
+                ongoing = false;
+                break;
+            }else{
+                move = stringToMove(input);
+                livePos = livePos.makeMove(move);
+            }
+        }
+    }
+    cout<<"game ended"<<endl;
+
+}
+
+
+
+//TODO: first the board must work, then other things
+
 
 int main() {
     precomputeMoveData();
@@ -757,10 +884,15 @@ int main() {
         }
         cout<<endl;
     }
-    //cout<<moveGenTest(thirdPos,3)<<endl;
+//    thirdPos = thirdPos.makeMove(new chessMove(12,28,doublePawnPush));
+//    thirdPos = thirdPos.makeMove(new chessMove(48,40));
+//    thirdPos = thirdPos.makeMove(new chessMove(28,36));
+//    thirdPos = thirdPos.makeMove(new chessMove(51,35,doublePawnPush));
+//    thirdPos = thirdPos.makeMove(new chessMove(36,43,enPassant));
+    cout<<moveGenTest(thirdPos,2)<<endl;
     //diffTestPos = diffTestPos.makeMove(new chessMove(4,6,KCastle));
-    cout<<moveGenTest(diffTestPos,5)<<endl;
-
+    //cout<<moveGenTest(diffTestPos,5)<<endl;
+    gameAgainstHuman();
 
 
 
