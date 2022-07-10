@@ -98,7 +98,7 @@ public:
     int enPassantTarget;
     int halfmoves;
     int fullmoves;
-    bool isInCheck;
+
     int whiteKingSquare;
     int blackKingSquare;
     vector<chessMove*> pseudoLegalMoves;
@@ -113,7 +113,7 @@ public:
         turn = 8;
         halfmoves = 0;
         fullmoves = 1;
-        isInCheck = false;
+
         whiteKingSquare = -1;
         blackKingSquare = -1;
     }
@@ -180,7 +180,7 @@ public:
 
         fullmoves = stoi(fenRemainder);
 
-        isInCheck = false;
+
         for(int i = 0;i<63;i++){
             if(board[i]==(White|King)){
                 whiteKingSquare = i;
@@ -225,7 +225,6 @@ public:
                 }
             }
         }
-
     }
     void generateKnightMoves(int startSquare,vector<chessMove*> &moves){
         int file = startSquare % 8;
@@ -414,7 +413,7 @@ public:
         enPassantTarget = oldPos.enPassantTarget;
         halfmoves = oldPos.halfmoves;
         fullmoves = oldPos.fullmoves;
-        isInCheck = oldPos.isInCheck;
+
         whiteKingSquare = oldPos.whiteKingSquare;
         blackKingSquare = oldPos.blackKingSquare;
 
@@ -825,8 +824,10 @@ static void gameAgainstHuman(){
 }
 
 
+static int baseEvaluate(chessPosition pos){
+    //TODO
+}
 
-//TODO: first the board must work, then other things
 
 
 int main() {
