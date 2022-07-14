@@ -414,7 +414,7 @@ public:
 
     }
     chessPosition(const chessPosition &oldPos){
-        //does not copy the lists of moves
+        //does not copy the lists of moves!!
         board = oldPos.board;
         turn = oldPos.turn;
         castlingRights = oldPos.castlingRights;
@@ -424,6 +424,7 @@ public:
 
         whiteKingSquare = oldPos.whiteKingSquare;
         blackKingSquare = oldPos.blackKingSquare;
+        material = oldPos.material;
 
     }
     chessPosition makeMove(chessMove* move){
@@ -777,6 +778,79 @@ static chessMove* stringToMove(string movestring){
     }
     return new chessMove(startsquare, endsquare);
 }
+
+
+static int baseEvaluate(chessPosition* pos){
+    int eval;
+    if (pos->legalMoves.empty()){
+        if(pos->playerInCheck()){
+                eval = -1000000000;
+        }else{
+            eval = 0;
+        }
+    }else{
+        eval = pos->material;
+    }
+    if(pos->turn == White){
+        return eval;
+    }
+    return -eval;
+}
+static int searchEvaluate(chessPosition* pos,int depth,int alpha, int beta){
+    pos->generateMoves();
+    if(depth == 0){
+        return baseEvaluate(pos);
+    }
+    if(pos->legalMoves.empty()){
+        if(pos->playerInCheck()){
+            return -1000000000;
+        }
+        return 0;
+    }
+
+
+    for(auto move : pos->legalMoves){
+        chessPosition newPos = pos->makeMove(move);
+        int eval = -searchEvaluate(&newPos,depth-1,-beta,-alpha);
+        //cout<<pos->moveToPrintMove(move)<<" "<<eval<<endl;
+        if(eval >= beta){
+            return beta;
+        }
+
+        alpha = max(alpha,eval);
+
+    }
+    return alpha;
+
+}
+static pair<int,chessMove*> outerEvaluate(chessPosition* pos,int depth){
+    pos->generateMoves();
+    if(depth == 0){
+        return {baseEvaluate(pos), NULL};
+    }
+    if(pos->legalMoves.empty()){
+        if(pos->playerInCheck()){
+            return {-1000000000,NULL};
+        }
+        return {0,NULL};
+    }
+    int bestEval = -1000000000;
+    chessMove* bestMove;
+    for(auto move : pos->legalMoves){
+        chessPosition newPos = pos->makeMove(move);
+        int eval = -searchEvaluate(&newPos,depth-1,-1000000000,1000000000);
+        //cout<<pos->moveToPrintMove(move)<<" "<<eval<<endl;
+
+        if(eval>bestEval){
+            bestEval = eval;
+            bestMove = move;
+        }
+
+    }
+    return {bestEval,bestMove};
+
+}
+
 static void gameAgainstHuman(){
     cout<<"New Game against Human"<<endl;
     chessPosition livePos = *new chessPosition(startingFEN);
@@ -817,7 +891,7 @@ static void gameAgainstHuman(){
                     break;
                 }
             }else{
-                move = livePos.randomMove();
+                move = outerEvaluate(&livePos,4).second;
                 cout<<livePos.moveToPrintMove(move)<<endl;
                 livePos = livePos.makeMove(move);
             }
@@ -837,7 +911,7 @@ static void gameAgainstHuman(){
                     break;
                 }
             }else{
-                move = livePos.randomMove();
+                move = outerEvaluate(&livePos,4).second;
                 cout<<livePos.moveToPrintMove(move)<<endl;
                 livePos = livePos.makeMove(move);
             }
@@ -856,48 +930,6 @@ static void gameAgainstHuman(){
 
 }
 
-static int baseEvaluate(chessPosition* pos){
-    int eval;
-    if (pos->legalMoves.empty()){
-        if(pos->playerInCheck()){
-                eval = -1000000000;
-        }else{
-            eval = 0;
-        }
-    }else{
-        eval = pos->material;
-    }
-    return eval;
-}
-static int searchEvaluate(chessPosition* pos,int depth){
-    pos->generateMoves();
-    if(depth == 0){
-        return baseEvaluate(pos);
-    }
-    if(pos->legalMoves.empty()){
-        if(pos->playerInCheck()){
-            return -1000000000;
-        }
-        return 0;
-    }
-    int bestEval = -1000000000;
-    //chessMove* bestMove;
-    for(auto move : pos->legalMoves){
-        chessPosition newPos = pos->makeMove(move);
-        int eval = -searchEvaluate(&newPos,depth-1);
-        if(eval>bestEval){
-            bestEval = eval;
-            //bestMove = move;
-        }
-
-
-    }
-    return bestEval;
-
-}
-
-
-
 int main() {
     precomputeMoveData();
     string diffcultTestPosFEN = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
@@ -909,7 +941,7 @@ int main() {
 
 
 
-    auto thirdPos= new chessPosition("r1bqkbnr/pppp1ppp/8/4n3/2B1P3/1Q6/PB3PPP/RN2K1NR w KQkq - 3 7");
+    auto thirdPos= new chessPosition("R1b1k1nr/2Bp4/5p2/4p1p1/2P1P2p/5Q1P/P4PP1/6K1 b k - 1 30");
 
 
 
@@ -924,7 +956,9 @@ int main() {
     thirdPos->displayBoard();
 
     cout<<thirdPos->material<<endl;
-    cout<<searchEvaluate(thirdPos,1)<<endl;
+    pair<int,chessMove*> evalMove = outerEvaluate(thirdPos,4);
+
+    cout<<evalMove.first<<" "<<thirdPos->moveToPrintMove(evalMove.second)<<endl;
     //diffTestPos = diffTestPos.makeMove(new chessMove(4,6,KCastle));
     //cout<<moveGenTest(diffTestPos,5)<<endl;
     //gameAgainstHuman();
