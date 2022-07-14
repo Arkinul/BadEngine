@@ -30,11 +30,14 @@ static const int doublePawnPush = 7;
 static const int enPassant = 8;
 static random_device randDev;
 
-static const int pawnValue = 200;
-static const int knightValue = 600;
-static const int bishopValue = 600;
-static const int rookValue = 1000;
-static const int queenValue = 1800;
+static const int pawnValue = 100;
+static const int knightValue = 300;
+static const int bishopValue = 300;
+static const int rookValue = 500;
+static const int queenValue = 900;
+static const vector<int> pieceValues = {0,0,pawnValue,knightValue,bishopValue,rookValue,queenValue,0,
+                                        0,0,pawnValue,knightValue,bishopValue,rookValue,queenValue,0,
+                                        0,0,-pawnValue,-knightValue,-bishopValue,-rookValue,-queenValue,0};
 
 
 static void precomputeMoveData(){
@@ -99,10 +102,12 @@ public:
     int halfmoves;
     int fullmoves;
 
+
     int whiteKingSquare;
     int blackKingSquare;
     vector<chessMove*> pseudoLegalMoves;
     vector<chessMove*> legalMoves;
+    int material;
 
     chessPosition(){
         for(int i = 0; i<64;i++){
@@ -116,6 +121,7 @@ public:
 
         whiteKingSquare = -1;
         blackKingSquare = -1;
+        material = 0;
     }
     explicit chessPosition(string fen){
         auto pieceFromSymbol = new map<char, char>  {
@@ -178,16 +184,18 @@ public:
 
         halfmoves = stoi(fenHalfMoves);
 
+
         fullmoves = stoi(fenRemainder);
-
-
-        for(int i = 0;i<63;i++){
+        material = 0;
+        for(int i = 0;i<64;i++){
+            material += pieceValues[board[i]];
             if(board[i]==(White|King)){
                 whiteKingSquare = i;
             }else if(board[i]==(Black|King)){
                 blackKingSquare = i;
             }
         }
+
 
     }
     vector<chessMove*> generatePseudolegal(){
@@ -500,7 +508,8 @@ public:
                 newPos.board[move->endSquare+8] = None;
             }
         }
-        //TODO: update material
+        newPos.material -= pieceValues[this->board[move->endSquare]];
+
         return newPos;
     }
     bool isAttacked(int Square){
@@ -690,7 +699,22 @@ public:
         return result;
         //TODO:better with checkmate
     }
-
+    bool playerInCheck(){
+        if(this->turn == White and this->isAttacked(this->whiteKingSquare)){
+            return true;
+        }else if(this->turn == Black and this->isAttacked(this->blackKingSquare)){
+            return  true;
+        }
+        return false;
+    }
+    void displayBoard(){
+        for(int rank = 7;rank>=0;rank--){
+            for(int file = 0;file<8;file++){
+                cout<<this->board[rank*8+file]<<" ";
+            }
+            cout<<endl;
+        }
+    }
 };
 
 
@@ -756,14 +780,23 @@ static chessMove* stringToMove(string movestring){
 static void gameAgainstHuman(){
     cout<<"New Game against Human"<<endl;
     chessPosition livePos = *new chessPosition(startingFEN);
-    cout<<"choose Color:"<<endl;
+    cout<<"choose Color[w/b]:"<<endl;
     string color;
     cin>>color;
+    cout<<"show eval?[y/n]:"<<endl;
+    string input;
+    bool evalOn;
+    cin>>input;
+    if(input == "y"){
+        evalOn = true;
+    }else if(input == "n"){
+        evalOn = false;
+    }
     bool ongoing = true;
     chessMove* move;
     if(color == "w"){
         while(ongoing){
-            string input;
+
             cin>>input;
             if(input == "stop"){
                 ongoing = false;
@@ -808,7 +841,7 @@ static void gameAgainstHuman(){
                 cout<<livePos.moveToPrintMove(move)<<endl;
                 livePos = livePos.makeMove(move);
             }
-            string input;
+
             cin>>input;
             if(input == "stop"){
                 ongoing = false;
@@ -823,9 +856,44 @@ static void gameAgainstHuman(){
 
 }
 
+static int baseEvaluate(chessPosition* pos){
+    int eval;
+    if (pos->legalMoves.empty()){
+        if(pos->playerInCheck()){
+                eval = -1000000000;
+        }else{
+            eval = 0;
+        }
+    }else{
+        eval = pos->material;
+    }
+    return eval;
+}
+static int searchEvaluate(chessPosition* pos,int depth){
+    pos->generateMoves();
+    if(depth == 0){
+        return baseEvaluate(pos);
+    }
+    if(pos->legalMoves.empty()){
+        if(pos->playerInCheck()){
+            return -1000000000;
+        }
+        return 0;
+    }
+    int bestEval = -1000000000;
+    //chessMove* bestMove;
+    for(auto move : pos->legalMoves){
+        chessPosition newPos = pos->makeMove(move);
+        int eval = -searchEvaluate(&newPos,depth-1);
+        if(eval>bestEval){
+            bestEval = eval;
+            //bestMove = move;
+        }
 
-static int baseEvaluate(chessPosition pos){
-    //TODO
+
+    }
+    return bestEval;
+
 }
 
 
@@ -833,44 +901,18 @@ static int baseEvaluate(chessPosition pos){
 int main() {
     precomputeMoveData();
     string diffcultTestPosFEN = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
-    auto testpos = *new chessPosition("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2");
-    auto diffTestPos = *new chessPosition(diffcultTestPosFEN);
-    for(int rank = 7;rank>=0;rank--){
-        for(int file = 0;file<8;file++){
-            cout<<diffTestPos.board[rank*8+file]<<" ";
-        }
-        cout<<endl;
-    }
-    cout<<diffTestPos.turn<<endl;
-    for(int i = 0;i<4;i++){
-        if(diffTestPos.castlingRights[i]){
-            cout<<"True"<<endl;
-        }else{
-            cout<<"False"<<endl;
-        }
-    }
-    cout<<diffTestPos.enPassantTarget<<endl;
-    cout<<diffTestPos.halfmoves<<endl;
-    cout<<diffTestPos.fullmoves<<endl;
+    auto testpos = new chessPosition("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2");
+    auto diffTestPos = new chessPosition(diffcultTestPosFEN);
+    diffTestPos->displayBoard();
 
 
-    cout<<"Testing pseudolegal moves"<<endl;
 
-    diffTestPos.pseudoLegalMoves = diffTestPos.generatePseudolegal();
-    cout<<diffTestPos.pseudoLegalMoves.size()<<endl;
-    for(auto move: diffTestPos.pseudoLegalMoves){
-        cout<<diffTestPos.moveToPrintMove(move)<<endl;
 
-    }
-    cout<<"Testing legal moves"<<endl;
-    diffTestPos.legalMoves = diffTestPos.generateLegalMoves();
-    cout<<diffTestPos.legalMoves.size()<<endl;
-    chessPosition afterMove = testpos.makeMove(new chessMove(6,21));
 
-    auto thirdPos= *new chessPosition(startingFEN);
+    auto thirdPos= new chessPosition("r1bqkbnr/pppp1ppp/8/4n3/2B1P3/1Q6/PB3PPP/RN2K1NR w KQkq - 3 7");
 
-    //thirdPos = thirdPos.makeMove(new chessMove(8,24,doublePawnPush));
-    cout<<thirdPos.enPassantTarget<<endl;
+
+
 //    for(int i = 0; i<30;i++){
 //        thirdPos.pseudoLegalMoves = thirdPos.generatePseudolegal();
 //        thirdPos.legalMoves = thirdPos.generateLegalMoves();
@@ -879,21 +921,13 @@ int main() {
 //        cout<<thirdPos.moveToPrintMove(move)<<endl;
 //        thirdPos = (thirdPos.makeMove(move));
 //    }
-    for(int rank = 7;rank>=0;rank--){
-        for(int file = 0;file<8;file++){
-            cout<<thirdPos.board[rank*8+file]<<" ";
-        }
-        cout<<endl;
-    }
-//    thirdPos = thirdPos.makeMove(new chessMove(12,28,doublePawnPush));
-//    thirdPos = thirdPos.makeMove(new chessMove(48,40));
-//    thirdPos = thirdPos.makeMove(new chessMove(28,36));
-//    thirdPos = thirdPos.makeMove(new chessMove(51,35,doublePawnPush));
-//    thirdPos = thirdPos.makeMove(new chessMove(36,43,enPassant));
-    cout<<moveGenTest(thirdPos,2)<<endl;
+    thirdPos->displayBoard();
+
+    cout<<thirdPos->material<<endl;
+    cout<<searchEvaluate(thirdPos,1)<<endl;
     //diffTestPos = diffTestPos.makeMove(new chessMove(4,6,KCastle));
     //cout<<moveGenTest(diffTestPos,5)<<endl;
-    gameAgainstHuman();
+    //gameAgainstHuman();
 
 
 
