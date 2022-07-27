@@ -768,9 +768,9 @@ static chessMove* stringToMove(string movestring){
                 spec = QueenProm;
             }
         }else if(movestring.size() == 6){
-            if(movestring[5] == 'K'){
+            if(movestring[4] == 'K'){
                 spec = KCastle;
-            }else if(movestring[5] == 'Q'){
+            }else if(movestring[4] == 'Q'){
                 spec = QCastle;
             }
         }
@@ -852,6 +852,7 @@ static pair<int,chessMove*> outerEvaluate(chessPosition* pos,int depth){
 }
 
 static void gameAgainstHuman(){
+    //TODO: show eval
     cout<<"New Game against Human"<<endl;
     chessPosition livePos = *new chessPosition(startingFEN);
     cout<<"choose Color[w/b]:"<<endl;
@@ -875,6 +876,11 @@ static void gameAgainstHuman(){
             if(input == "stop"){
                 ongoing = false;
                 break;
+            }else if(input == "board"){
+                livePos.displayBoard();
+                cin>>input;
+                move = stringToMove(input);
+                livePos = livePos.makeMove(move);
             }else{
                 move = stringToMove(input);
                 livePos = livePos.makeMove(move);
@@ -920,7 +926,12 @@ static void gameAgainstHuman(){
             if(input == "stop"){
                 ongoing = false;
                 break;
-            }else{
+            }else if(input == "board"){
+                livePos.displayBoard();
+                cin>>input;
+                move = stringToMove(input);
+                livePos = livePos.makeMove(move);
+            }else {
                 move = stringToMove(input);
                 livePos = livePos.makeMove(move);
             }
@@ -961,7 +972,7 @@ int main() {
     cout<<evalMove.first<<" "<<thirdPos->moveToPrintMove(evalMove.second)<<endl;
     //diffTestPos = diffTestPos.makeMove(new chessMove(4,6,KCastle));
     //cout<<moveGenTest(diffTestPos,5)<<endl;
-    //gameAgainstHuman();
+    gameAgainstHuman();
 
 
 
