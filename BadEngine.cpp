@@ -1,4 +1,5 @@
 #include <bits/stdc++.h>
+#include <chrono>
 
 using namespace std;
 using ll = long long;
@@ -618,6 +619,7 @@ public:
             }
 
         }
+        shuffle(moves.begin(),moves.end(),randDev);
         return moves;
     }
     void generateMoves(){
@@ -720,21 +722,21 @@ public:
 
 
 
-static int moveGenTest(chessPosition pos, int depth){
+static int moveGenTest(chessPosition* pos, int depth){
     if (depth == 0){
         return 1;
     }
-    pos.generateMoves();
+    pos->generateMoves();
     int numberOfPositions= 0;
-    for(auto move:pos.legalMoves){
-        chessPosition newPos = pos.makeMove(move);
+    for(auto move:pos->legalMoves){
+        chessPosition newPos = pos->makeMove(move);
 //        int test = moveGenTest(newPos,depth-1);
 //        if(depth>0){
 //            cout<<pos.moveToPrintMove(move)<<" "<<test<<endl;
 //        }
 
 
-        numberOfPositions += moveGenTest(newPos,depth-1);
+        numberOfPositions += moveGenTest(&newPos,depth-1);
     }
     //cout<<numberOfPositions<<endl;
     return numberOfPositions;
@@ -971,8 +973,17 @@ int main() {
 
     cout<<evalMove.first<<" "<<thirdPos->moveToPrintMove(evalMove.second)<<endl;
     //diffTestPos = diffTestPos.makeMove(new chessMove(4,6,KCastle));
-    //cout<<moveGenTest(diffTestPos,5)<<endl;
-    gameAgainstHuman();
+    for(int i = 1;i<6;i++){
+        int test = 0;
+        auto start = chrono::high_resolution_clock::now();
+        test = moveGenTest(diffTestPos,i);
+        auto stop = chrono::high_resolution_clock::now();
+        auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
+        cout<<i<< " " <<duration.count()<< "microseconds"<<endl;
+    }
+
+
+    //gameAgainstHuman();
 
 
 
