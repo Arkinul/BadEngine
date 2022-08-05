@@ -589,6 +589,19 @@ public:
                 return true;
             }
         }
+        for(int dirIndex = 0;dirIndex<8;dirIndex++){
+            if (numSquaresToEdge[Square][dirIndex] != 0){
+                int targetSquare = Square + dirOffsets[dirIndex];
+                int pieceOnTargetSquare = this->board[targetSquare];
+                if(this->turn == White and pieceOnTargetSquare == (Black|King)){
+                    return true;
+                }else if(this->turn == Black and pieceOnTargetSquare == (White|King)){
+                    return true;
+                }
+
+            }
+        }
+
 
         return false;
     }
@@ -973,17 +986,17 @@ int main() {
 
     cout<<evalMove.first<<" "<<thirdPos->moveToPrintMove(evalMove.second)<<endl;
     //diffTestPos = diffTestPos.makeMove(new chessMove(4,6,KCastle));
-    for(int i = 1;i<6;i++){
-        int test = 0;
-        auto start = chrono::high_resolution_clock::now();
-        test = moveGenTest(diffTestPos,i);
-        auto stop = chrono::high_resolution_clock::now();
-        auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
-        cout<<i<< " " <<duration.count()<< "microseconds"<<endl;
-    }
+//    for(int i = 1;i<6;i++){
+//        int test = 0;
+//        auto start = chrono::high_resolution_clock::now();
+//        test = moveGenTest(diffTestPos,i);
+//        auto stop = chrono::high_resolution_clock::now();
+//        auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
+//        cout<<i<< " " <<duration.count()<< "microseconds"<<endl;
+//    }
 
 
-    //gameAgainstHuman();
+    gameAgainstHuman();
 
 
 
