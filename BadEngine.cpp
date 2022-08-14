@@ -33,7 +33,7 @@ static random_device randDev;
 
 static const int pawnValue = 100;
 static const int knightValue = 300;
-static const int bishopValue = 300;
+static const int bishopValue = 301;
 static const int rookValue = 500;
 static const int queenValue = 900;
 static const vector<int> pieceValues = {0,0,pawnValue,knightValue,bishopValue,rookValue,queenValue,0,
@@ -867,7 +867,7 @@ static pair<int,chessMove*> outerEvaluate(chessPosition* pos,int depth){
 }
 
 static void gameAgainstHuman(){
-    //TODO: show eval
+    //TODO: show eval, engine win
     cout<<"New Game against Human"<<endl;
     chessPosition livePos = *new chessPosition(startingFEN);
     cout<<"choose Color[w/b]:"<<endl;
