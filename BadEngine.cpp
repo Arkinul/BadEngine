@@ -912,8 +912,13 @@ static void gameAgainstHuman(){
                     break;
                 }
             }else{
-                move = outerEvaluate(&livePos,4).second;
+                pair<int,chessMove*> searchresult = outerEvaluate(&livePos,4);
+                move = searchresult.second;
                 cout<<livePos.moveToPrintMove(move)<<endl;
+                if(evalOn){
+                    int eval = searchresult.first;
+                    cout<<"best Eval: "<<eval<<endl;
+                }
                 livePos = livePos.makeMove(move);
             }
         }
@@ -932,8 +937,13 @@ static void gameAgainstHuman(){
                     break;
                 }
             }else{
-                move = outerEvaluate(&livePos,4).second;
+                pair<int,chessMove*> searchresult = outerEvaluate(&livePos,4);
+                move = searchresult.second;
                 cout<<livePos.moveToPrintMove(move)<<endl;
+                if(evalOn){
+                    int eval = searchresult.first;
+                    cout<<"best Eval: "<<eval<<endl;
+                }
                 livePos = livePos.makeMove(move);
             }
 
