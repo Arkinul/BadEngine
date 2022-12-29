@@ -68,7 +68,7 @@ static bool isSlidingPiece(char piece){
     }
     return false;
 }
-static int oppositeColor(char color){
+static char oppositeColor(char color){
     if(color == White){
         return Black;
     }else{
@@ -99,7 +99,7 @@ public:
     vector<char> board;
     char turn;
     vector<bool> castlingRights;
-    int enPassantTarget;
+    char enPassantTarget;
     int halfmoves;
     int fullmoves;
 
@@ -110,8 +110,9 @@ public:
     vector<chessMove*> legalMoves;
     int material;
 
+
     chessPosition(){
-        for(int i = 0; i<64;i++){
+        for(char i = 0; i<64;i++){
             board.push_back(0);
         }
         castlingRights= {true,true,true,true};
@@ -130,8 +131,8 @@ public:
         };
         string fenBoard = fen.substr(0,fen.find_first_of(' '));
         string fenRemainder = fen.substr(fen.find_first_of(' ')+1,fen.size()-fen.find_first_of(' ')-1);
-        int file = 0,rank = 7;
-        for(int i = 0; i<64;i++){
+        char file = 0,rank = 7;
+        for(char i = 0; i<64;i++){
             board.push_back(None);
         }
         for(auto symbol: fenBoard){
@@ -142,8 +143,8 @@ public:
                 if(isdigit(symbol)){
                     file += stoi(&symbol);
                 }else{
-                    int pieceColor = isupper(symbol) ? White : Black;
-                    int pieceType = pieceFromSymbol->at(tolower(symbol));
+                    char pieceColor = isupper(symbol) ? White : Black;
+                    char pieceType = pieceFromSymbol->at(tolower(symbol));
                     board[rank*8+file] = pieceColor | pieceType;
                     file++;
                 }
@@ -188,7 +189,7 @@ public:
 
         fullmoves = stoi(fenRemainder);
         material = 0;
-        for(int i = 0;i<64;i++){
+        for(char i = 0;i<64;i++){
             material += pieceValues[board[i]];
             if(board[i]==(White|King)){
                 whiteKingSquare = i;
@@ -201,8 +202,8 @@ public:
     }
     vector<chessMove*> generatePseudolegal(){
         vector<chessMove*> moves;
-        for(int startSquare = 0;startSquare<64;startSquare++){
-            int piece = this->board[startSquare];
+        for(char startSquare = 0;startSquare<64;startSquare++){
+            char piece = this->board[startSquare];
             if(isColor(piece,this->turn)){
                 if(isSlidingPiece(piece)){
                     generateSlidingMoves(startSquare,piece,moves);
@@ -217,14 +218,14 @@ public:
         }
         return moves;
     }
-    void generateSlidingMoves(int startSquare, int piece,vector<chessMove*> &moves){
-        int startDirIndex = ((piece & 7) == Bishop) ? 4 : 0;
-        int endDirIndex = ((piece & 7) == Rook) ? 4 : 8;
+    void generateSlidingMoves(char startSquare, char piece,vector<chessMove*> &moves){
+        char startDirIndex = ((piece & 7) == Bishop) ? 4 : 0;
+        char endDirIndex = ((piece & 7) == Rook) ? 4 : 8;
 
-        for (int dirIndex = startDirIndex; dirIndex<endDirIndex;dirIndex++){
-            for (int n = 0; n < numSquaresToEdge[startSquare][dirIndex];n++){
-                int targetSquare = startSquare + dirOffsets[dirIndex] * (n+1);
-                int pieceOnTargetSquare = this->board[targetSquare];
+        for (char dirIndex = startDirIndex; dirIndex<endDirIndex;dirIndex++){
+            for (char n = 0; n < numSquaresToEdge[startSquare][dirIndex];n++){
+                char targetSquare = startSquare + dirOffsets[dirIndex] * (n+1);
+                char pieceOnTargetSquare = this->board[targetSquare];
                 if(isColor(pieceOnTargetSquare,this->turn)){
                     break;
                 }
@@ -235,10 +236,10 @@ public:
             }
         }
     }
-    void generateKnightMoves(int startSquare,vector<chessMove*> &moves){
-        int file = startSquare % 8;
-        int startDirIndex;
-        int endDirIndex;
+    void generateKnightMoves(char startSquare,vector<chessMove*> &moves){
+        char file = startSquare % 8;
+        char startDirIndex;
+        char endDirIndex;
         switch (file) {
             case 0:
                 startDirIndex = 4;
@@ -261,8 +262,8 @@ public:
                 endDirIndex = 8;
                 break;
         }
-        for(int dirIndex = startDirIndex;dirIndex<endDirIndex;dirIndex++){
-            int targetSquare = startSquare+knightOffsets[dirIndex];
+        for(char dirIndex = startDirIndex;dirIndex<endDirIndex;dirIndex++){
+            char targetSquare = startSquare+knightOffsets[dirIndex];
             if(0<=targetSquare and targetSquare<64){
                 if(!isColor(this->board[targetSquare],this->turn)){
                     moves.push_back(new chessMove(startSquare,targetSquare));
@@ -273,9 +274,9 @@ public:
 
 
     }
-    void generatePawnMoves(int startSquare,vector<chessMove*> &moves){
-        int file = startSquare % 8;
-        int rank = (startSquare - file)/8;
+    void generatePawnMoves(char startSquare,vector<chessMove*> &moves){
+        char file = startSquare % 8;
+        char rank = (startSquare - file)/8;
         if(this->turn==White){
             if(this->board[startSquare+8] == None){
                 if(rank == 6){
@@ -372,11 +373,11 @@ public:
         }
 
     }
-    void generateKingMoves(int startSquare,vector<chessMove*> &moves){
-        for(int dirIndex = 0;dirIndex<8;dirIndex++){
+    void generateKingMoves(char startSquare,vector<chessMove*> &moves){
+        for(char dirIndex = 0;dirIndex<8;dirIndex++){
             if (numSquaresToEdge[startSquare][dirIndex] !=0){
-                int targetSquare = startSquare + dirOffsets[dirIndex];
-                int pieceOnTargetSquare = this->board[targetSquare];
+                char targetSquare = startSquare + dirOffsets[dirIndex];
+                char pieceOnTargetSquare = this->board[targetSquare];
                 if(isColor(pieceOnTargetSquare,this->turn)){
                     continue;
                 }
@@ -437,7 +438,7 @@ public:
             newPos.fullmoves++;
             newPos.turn = White;
         }
-        int piece = newPos.board[move->startSquare];
+        char piece = newPos.board[move->startSquare];
         newPos.board[move->startSquare] = None;
 
         newPos.board[move->endSquare] = piece;
@@ -515,11 +516,11 @@ public:
 
         return newPos;
     }
-    bool isAttacked(int Square){
-        for(int dirIndex= 0;dirIndex<4;dirIndex++){
-            for(int n=0;n<numSquaresToEdge[Square][dirIndex];n++){
-                int targetSquare = Square + dirOffsets[dirIndex] * (n+1);
-                int pieceOnTargetSquare = this->board[targetSquare];
+    bool isAttacked(char Square){
+        for(char dirIndex= 0;dirIndex<4;dirIndex++){
+            for(char n=0;n<numSquaresToEdge[Square][dirIndex];n++){
+                char targetSquare = Square + dirOffsets[dirIndex] * (n+1);
+                char pieceOnTargetSquare = this->board[targetSquare];
                 if(pieceOnTargetSquare == (Rook | oppositeColor(this->turn)) or pieceOnTargetSquare == (Queen | oppositeColor(this->turn))){
                     return true;
                 }else if(pieceOnTargetSquare == None){
@@ -529,10 +530,10 @@ public:
                 }
             }
         }
-        for(int dirIndex= 4;dirIndex<8;dirIndex++){
-            for(int n=0;n<numSquaresToEdge[Square][dirIndex];n++){
-                int targetSquare = Square + dirOffsets[dirIndex] * (n+1);
-                int pieceOnTargetSquare = this->board[targetSquare];
+        for(char dirIndex= 4;dirIndex<8;dirIndex++){
+            for(char n=0;n<numSquaresToEdge[Square][dirIndex];n++){
+                char targetSquare = Square + dirOffsets[dirIndex] * (n+1);
+                char pieceOnTargetSquare = this->board[targetSquare];
                 if(pieceOnTargetSquare == (Bishop | oppositeColor(this->turn)) or pieceOnTargetSquare == (Queen | oppositeColor(this->turn))){
                     return true;
                 }else if(pieceOnTargetSquare == None){
@@ -542,9 +543,9 @@ public:
                 }
             }
         }
-        int file = Square % 8;
-        int startDirIndex;
-        int endDirIndex;
+        char file = Square % 8;
+        char startDirIndex;
+        char endDirIndex;
         switch (file) {
             case 0:
                 startDirIndex = 4;
@@ -567,8 +568,8 @@ public:
                 endDirIndex = 8;
                 break;
         }
-        for(int dirIndex = startDirIndex;dirIndex<endDirIndex;dirIndex++){
-            int targetSquare = Square+knightOffsets[dirIndex];
+        for(char dirIndex = startDirIndex;dirIndex<endDirIndex;dirIndex++){
+            char targetSquare = Square+knightOffsets[dirIndex];
             if(0<=targetSquare and targetSquare<64){
                 if(this->board[targetSquare]== (oppositeColor(this->turn)|Knight)){
                     return true;
@@ -590,10 +591,10 @@ public:
                 return true;
             }
         }
-        for(int dirIndex = 0;dirIndex<8;dirIndex++){
+        for(char dirIndex = 0;dirIndex<8;dirIndex++){
             if (numSquaresToEdge[Square][dirIndex] != 0){
-                int targetSquare = Square + dirOffsets[dirIndex];
-                int pieceOnTargetSquare = this->board[targetSquare];
+                char targetSquare = Square + dirOffsets[dirIndex];
+                char pieceOnTargetSquare = this->board[targetSquare];
                 if(this->turn == White and pieceOnTargetSquare == (Black|King)){
                     return true;
                 }else if(this->turn == Black and pieceOnTargetSquare == (White|King)){
@@ -727,7 +728,7 @@ public:
     void displayBoard(){
         for(int rank = 7;rank>=0;rank--){
             for(int file = 0;file<8;file++){
-                cout<<this->board[rank*8+file]<<" ";
+                cout<<(int)this->board[rank*8+file]<<" ";
             }
             cout<<endl;
         }
@@ -740,6 +741,11 @@ static int moveGenTest(chessPosition* pos, int depth){
     if (depth == 0){
         return 1;
     }
+
+    auto start = chrono::high_resolution_clock::now();
+
+
+
     pos->generateMoves();
     int numberOfPositions= 0;
     for(auto move:pos->legalMoves){
@@ -751,6 +757,12 @@ static int moveGenTest(chessPosition* pos, int depth){
 
 
         numberOfPositions += moveGenTest(&newPos,depth-1);
+    }
+
+        auto stop = chrono::high_resolution_clock::now();
+        auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
+    if(depth == 4){
+        cout<< " " <<duration.count()<< " microseconds"<<endl;
     }
     //cout<<numberOfPositions<<endl;
     return numberOfPositions;
