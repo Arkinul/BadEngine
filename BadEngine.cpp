@@ -5,30 +5,30 @@ using namespace std;
 using ll = long long;
 
 
-static const int None = 0;
-static const int King = 1;
-static const int Pawn = 2;
-static const int Knight = 3;
-static const int Bishop = 4;
-static const int Rook = 5;
-static const int Queen = 6;
+static const char None = 0;
+static const char King = 1;
+static const char Pawn = 2;
+static const char Knight = 3;
+static const char Bishop = 4;
+static const char Rook = 5;
+static const char Queen = 6;
 
-static const int White = 8;
-static const int Black = 16;
+static const char White = 8;
+static const char Black = 16;
 
 static const string startingFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
-static const vector<int> dirOffsets = {8,-8,-1,1,7,-7,9,-9};
-static const vector<int> knightOffsets = {6,-10,15,-17,17,-15,10,-6};
-static vector<vector<int>> numSquaresToEdge(64,vector<int>(8));
-static const int KCastle = 1;
-static const int QCastle = 2;
-static const int KnightProm = 3;
-static const int BishopProm = 4;
-static const int RookProm = 5;
-static const int QueenProm = 6;
-static const int doublePawnPush = 7;
-static const int enPassant = 8;
+static const vector<char> dirOffsets = {8,-8,-1,1,7,-7,9,-9};
+static const vector<char> knightOffsets = {6,-10,15,-17,17,-15,10,-6};
+static vector<vector<char>> numSquaresToEdge(64,vector<char>(8));
+static const char KCastle = 1;
+static const char QCastle = 2;
+static const char KnightProm = 3;
+static const char BishopProm = 4;
+static const char RookProm = 5;
+static const char QueenProm = 6;
+static const char doublePawnPush = 7;
+static const char enPassant = 8;
 static random_device randDev;
 
 static const int pawnValue = 100;
@@ -42,33 +42,33 @@ static const vector<int> pieceValues = {0,0,pawnValue,knightValue,bishopValue,ro
 
 
 static void precomputeMoveData(){
-    for (int file = 0;file<8;file++){
-        for(int rank = 0;rank<8;rank++){
-            int numUp = 7-rank;
-            int numDown = rank;
-            int numLeft = file;
-            int numRight = 7-file;
+    for (char file = 0;file<8;file++){
+        for(char rank = 0;rank<8;rank++){
+            char numUp = 7-rank;
+            char numDown = rank;
+            char numLeft = file;
+            char numRight = 7-file;
 
-            int squareIndex = rank*8+file;
+            char squareIndex = rank*8+file;
 
             numSquaresToEdge[squareIndex] = {numUp,numDown,numLeft,numRight,min(numUp,numLeft),min(numDown,numRight),min(numUp,numRight),min(numDown,numLeft)};
         }
     }
 }
-static bool isColor(int piece, int color){
+static bool isColor(char piece, char color){
     if((piece & color) == 0){
         return false;
     }
     return true;
 }
-static bool isSlidingPiece(int piece){
-    int colorless = piece & 7;
+static bool isSlidingPiece(char piece){
+    char colorless = piece & 7;
     if(colorless == Bishop or colorless == Rook or colorless == Queen){
         return true;
     }
     return false;
 }
-static int oppositeColor(int color){
+static int oppositeColor(char color){
     if(color == White){
         return Black;
     }else{
@@ -79,15 +79,15 @@ static int oppositeColor(int color){
 
 class chessMove{
 public:
-    int startSquare;
-    int endSquare;
-    int specialty;
-    chessMove(int start,int end){
+    char startSquare;
+    char endSquare;
+    char specialty;
+    chessMove(char start,char end){
         startSquare = start;
         endSquare = end;
         specialty = 0;
     }
-    chessMove(int start,int end, int spec){
+    chessMove(char start,char end, char spec){
         startSquare = start;
         endSquare = end;
         specialty = spec;
@@ -96,7 +96,7 @@ public:
 
 class chessPosition {
 public:
-    vector<int> board;
+    vector<char> board;
     char turn;
     vector<bool> castlingRights;
     int enPassantTarget;
@@ -104,8 +104,8 @@ public:
     int fullmoves;
 
 
-    int whiteKingSquare;
-    int blackKingSquare;
+    char whiteKingSquare;
+    char blackKingSquare;
     vector<chessMove*> pseudoLegalMoves;
     vector<chessMove*> legalMoves;
     int material;
@@ -383,6 +383,7 @@ public:
                 moves.push_back(new chessMove(startSquare,targetSquare));
             }
         }
+        //maybe unnecessary because of checklegalmoves()
         if(this->turn == White and startSquare == 4){
 
             if(this->board[7]==(White | Rook) and this->castlingRights[0] and this->board[5]==None and this->board[6]==None){
@@ -996,17 +997,17 @@ int main() {
 
     cout<<evalMove.first<<" "<<thirdPos->moveToPrintMove(evalMove.second)<<endl;
     //diffTestPos = diffTestPos.makeMove(new chessMove(4,6,KCastle));
-//    for(int i = 1;i<6;i++){
-//        int test = 0;
-//        auto start = chrono::high_resolution_clock::now();
-//        test = moveGenTest(diffTestPos,i);
-//        auto stop = chrono::high_resolution_clock::now();
-//        auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
-//        cout<<i<< " " <<duration.count()<< "microseconds"<<endl;
-//    }
+    for(int i = 1;i<6;i++){
+        int test = 0;
+        auto start = chrono::high_resolution_clock::now();
+        test = moveGenTest(diffTestPos,i);
+        auto stop = chrono::high_resolution_clock::now();
+        auto duration = chrono::duration_cast<chrono::microseconds>(stop - start);
+        cout<<i<< " " <<duration.count()<< " microseconds"<<endl;
+    }
 
 
-    gameAgainstHuman();
+   // gameAgainstHuman();
 
 
 
